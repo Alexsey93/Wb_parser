@@ -16,3 +16,7 @@ ozon = Session('https://www.wildberries.ru/')
 wb = Session('https://www.wildberries.ru/')
 wb.get_data()
 ozon.get_data()
+
+if __name__ == '__main__':
+    wb.get_data()
+    ozon.get_data()
