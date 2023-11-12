@@ -16,17 +16,13 @@ class Session:
 
 def parser_page(url):
     market = Session(url)
-    with open ('bazaraki_test.html', 'w') as file:
-        file.write(market.get_data())
+    return market.get_data()
         
-def parser_tags():
+def parser_cat():
     sub_category_info = {}
-    category_info = {}
-    with open ('bazaraki_test.html') as file:
-        src = file.read()
-#   print(src)    
-    soup = BeautifulSoup(src, 'lxml')
-    categories = soup.find_all('div', class_='category-item')
+    category_info = {}  
+    catalog = BeautifulSoup(parser_page('https://www.bazaraki.com/'), 'lxml')
+    categories = catalog.find_all('div', class_='category-item')
     for category in categories:
         name_category = category.find('p').text
         if not (category.find('ul') == None):
@@ -39,8 +35,24 @@ def parser_tags():
         file = json.dump(category_info, file, indent=4, ensure_ascii=False)        
 #        print(name_sub_category)
 #        print(name_category.text)
-    print(category_info)
-    
+
+def parser_announcements():
+    dict_anouncements = {}
+    with open ('test.json') as file:
+        cat = json.load(file)
+        for cat_name, cat_dict in cat.items():
+            for sub_category, link in cat_dict.items():
+                max_page = BeautifulSoup(parser_page(f'{link}'), 'lxml').find_all('a', class_='page-number js-page-filter')[-1].text
+                print(max_page)
+                for page in range (1, int(max_page) + 1):
+                    anouncements = BeautifulSoup(parser_page(f'{link}/?page={page}'), 'lxml')
+                    block_anouncements = anouncements.find_all('div', class_='advert js-item-listing')
+                    for item in block_anouncements:
+                        #dict_anouncements[item.find('a', class_='advert__content-title').text[11:-9:]] = BeautifulSoup(parser_page(f'https://www.bazaraki.com{item.find("a").get("href")}'), 'lxml').find('span', class_='counter-views').text  
+                        try:
+                            print(BeautifulSoup(parser_page(f'https://www.bazaraki.com{item.find("a", class_="advert__content-title").get("href")}'), 'lxml').find('span', class_='counter-views').text)  
+                        except:
+                            print(f'ошибка{page}{item}')
 if __name__ == '__main__':
-    parser_page('https://www.bazaraki.com/')
-    parser_tags()
+    parser_cat()
+    parser_announcements()
