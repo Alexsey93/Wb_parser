@@ -1,12 +1,8 @@
 import requests
-from bs4 import BeautifulSoup as bs
 import json
-#import asyncio
-#from aiohttp import ClientSession
 import os
 import shutil
 import time
-from aiohttp_retry import RetryClient, ExponentialRetry
 from src.modules import Items
 from src.modules import write
 time_counter = 0
