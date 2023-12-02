@@ -1,6 +1,12 @@
 import requests
 import time
+from pydantic import BaseModel 
 
+class pars_item(BaseModel):
+    name : str
+    price : int
+    brand : str
+    
 
 class Items_json():
     
@@ -23,19 +29,28 @@ class Items_json():
     'Sec-Fetch-Mode': 'cors',
     'Sec-Fetch-Site': 'cross-site',
         }
-        with requests.Session() as session:        
+        with requests.Session() as session:
+            max_retry = 10      
             page = 1
             r = session.get(f'https://catalog.wb.ru/catalog/{self.shard}/catalog?TestGroup=no_test&TestID=no_test&appType=1&cat={self.cat_id}&curr=rub&dest=-1257786&page={page}')
-            while True:
-                try:
-                    r = session.get(f'https://catalog.wb.ru/catalog/{self.shard}/catalog?TestGroup=no_test&TestID=no_test&appType=1&cat={self.cat_id}&curr=rub&dest=-1257786&page={page}')
-                    #print(r.text)
-                    print(f'категория --- {self.shard} --- страница в категории --- {page} --- {r.status_code} -- {type(self.info)}\n')
-                    page += 1
-                    self.info.append(r.json())
-                except Exception as ex:
-                    print(f'Ыозникла ошибка {ex} вероятно достигнут конец пагинации\n')
-                    print(f'Переход к следующей категории\n')
-                    break
-                time.sleep(0.5)
+            for ret in range(max_retry):
+                time.sleep(0.2)
+                while True:
+                    try:
+                        r = session.get(f'https://catalog.wb.ru/catalog/{self.shard}/catalog?TestGroup=no_test&TestID=no_test&appType=1&cat={self.cat_id}&curr=rub&dest=-1257786&page={page}')
+                        #print(r.text)
+                        print(f'категория --- {self.shard} --- страница в категории --- {page} --- {r.status_code} -- {type(self.info)}\n')
+                        page += 1
+                        #print(r.json()['data']['products'])
+                        self.info.append(r.json().get('data').get('products'))
+                        time.sleep(0.2)
+                    except Exception as ex:
+                        print(f'Возникла ошибка {ex}\n')
+                        print(f'попытка подключения {ret} из {max_retry} вероятно достигнут конец пагинации\n')
+                        page -= 1
+                        break
+            print(f'Переход к следующей категории\n')
+                        
+                    
+                #time.sleep(0.5)
     

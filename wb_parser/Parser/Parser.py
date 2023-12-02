@@ -5,6 +5,8 @@ import shutil
 import time
 from src.modules import Items
 from src.modules import write
+from src.modules import postgresql
+
 time_counter = 0
 
 
@@ -44,8 +46,8 @@ def make_folder():
         print(f'{folder}')
                 
 def dict_info():
-    dict_info = {}
-    with open ('/home/alex/parser/new_project/menu.json') as f:
+    dict_info_d = {}
+    with open ('data/menu.json', encoding="utf-8") as f:
         name = json.load(f)
     #    name.pop(0)
     #print(type(name))    
@@ -55,27 +57,56 @@ def dict_info():
                 for child in item_cat['childs']:
                     #print(child, '\n')
                     if 'shard' in child:
-                        dict_info[child['shard']] = child['id']
+                        dict_info_d[child['shard']] = [child['id'],child['name']]
         elif item_cat['shard'] == 'blackhole':
             for child in item_cat['childs']:
                 if 'shard' in child:
-                    dict_info[child['shard']] = child['id']
-    pages_item = [Items.Items_json(f'{name}', value) for name, value in dict_info.items()]
-    return pages_item
+                    dict_info_d[child['shard']] = [child['id'],child['name']]
+    pages_item = [Items.Items_json(f'{name}', value[0]) for name, value in dict_info_d.items()]
+    return pages_item, dict_info_d
 
 def main():
+    need_info = {}
+    make_folder()
     url = 'https://static-basket-01.wb.ru/vol0/data/main-menu-ru-ru-v2.json'
     menu = Parser(url, HEADERS_WB)
     write_menu_json = write.Json_write('menu')
     write_menu_json.loads_json(menu.get_page())
     write_menu_json.write_json()
     start_time = time.time()
-    for item in dict_info():
+    new_db = postgresql.Psql_db('wb_parser', 'alex', 'afbdogs', '212.26.248.159')
+    new_db.create_database()
+    list_db = []
+    for item in dict_info()[0]:
         item.item_info()
-        page_info = write.Json_write(item.shard, item.info)
-        page_info.write_json()
+        new_db.create_table(item.shard)
+        page_json_items = [page_json_item for pages in item.info
+                                    for page_json_item in pages]
+        for items in page_json_items:
+            need_info[items["id"]] = [items["name"],items["brand"]]
+        # print(need_info)
+        for id, name in need_info.items():
+            name_table = item.shard
+            symb = ['/','\\','.',' ','-','\'']
+            for sym in symb:
+                if sym in name[0]:
+                    name[0] = name[0].replace(sym,'_')
+                if sym in name[1]:
+                    name[1] = name[1].replace(sym,'_')
+                if sym in name_table:
+                    name_table = name_table.replace(sym,'_')
+            list_db.append(f"INSERT INTO {item.shard}(id_item, name, brand) VALUES ({id},'{name[0]}','{name[1]}');")
+        #print(list_db)
+        new_db.insert_data(list_db)
+            # new_db.insert_data(id, name[0], name[1])
+        need_info = {}
+        # all_items[dict_info()[1][item.shard][1]] = page_json_items
+        # page_info = write.Json_write(dict_info()[1][item.shard][1], page_json_items)
+        # page_info.write_json()
         current_time = time.time()
-        print(f'[INFO] прошло времени: {time.gmtime(current_time - start_time)[4]} мин : {time.gmtime(current_time - start_time)[5]} сек')
+        print(f'[INFO] прошло времени: {time.gmtime(current_time - start_time)[4]} мин : {time.gmtime(current_time - start_time)[5]} сек : {time.gmtime(current_time - start_time)[6]} мс')
+    # global_info_json = write.Json_write('Список всех предметов', all_items)
+    # global_info_json.write_json()
     end_time = time.time()    
     print(f'[INFO] затрачено вермя: {end_time - start_time}')    
 #        print(item.info)

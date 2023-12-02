@@ -10,10 +10,15 @@ class Json_write():
         self.json = json.loads(page)
     
     def write_json(self):
-        with open (f'data/{self.name_cat}.json', 'w') as f:
+        symb = '\/-., '
+        name = self.name_cat
+        for sym in symb:
+            if sym in name:
+                name = name.replace(sym,'_')
+        with open (f'data/{name}.json', 'w', encoding="utf-8") as f:
             json.dump(self.json, f, ensure_ascii=False, indent=4)
             
     def write_json_s(self):
         
-        with open (f'data/{self.name_cat}.json', 'w') as f:
+        with open (f'data/{self.name_cat}.json', 'w', encoding="utf-8") as f:
             f.write(json.dumps(self.json, ensure_ascii=False, indent=4))
