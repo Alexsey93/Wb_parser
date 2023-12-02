@@ -7,3 +7,4 @@ data
 #конфигурация
 *.cfg
 Parser
+async_parser.py
