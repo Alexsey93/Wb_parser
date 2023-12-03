@@ -1,7 +1,9 @@
-import re
+import psycopg2
 
-str = 'https://catalog.wb.ru/catalog/bl_shirts/catalog?TestGroup=no_test&TestID=no_test&appType=1&cat=8126&curr=rub&dest=-1257786&sort=popular&spp=28'
-str = str[29::]
-print(str)
-pattern = (r'^/\w+')
-print(re.findall(pattern, str))
+conn = psycopg2.connect(dbname='wb_parser', user='alex', password='afbdogs', host='212.26.248.159')
+with conn.cursor() as cursor:
+    conn.autocommit = True
+    sql = "SELECT * FROM test WHERE EXISTS( SELECT * FROM test WHERE id='1');"
+    cursor.execute(sql)
+    print(bool(cursor.fetchall()))
+conn.close()

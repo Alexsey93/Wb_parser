@@ -43,7 +43,6 @@ class Items_json():
                         page += 1
                         #print(r.json()['data']['products'])
                         self.info.append(r.json().get('data').get('products'))
-                        time.sleep(0.2)
                     except Exception as ex:
                         print(f'Возникла ошибка {ex}\n')
                         print(f'попытка подключения {ret} из {max_retry} вероятно достигнут конец пагинации\n')

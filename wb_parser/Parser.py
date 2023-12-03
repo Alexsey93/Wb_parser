@@ -77,9 +77,20 @@ def main():
     new_db = postgresql.Psql_db('wb_parser', 'alex', 'afbdogs', '212.26.248.159')
     new_db.create_database()
     list_db = []
+    count = 0
+    current_count = 0
+    for shard, id in dict_info()[1].items():
+        table_name = shard
+        symb = ['/','\\','.',' ','-','\'']
+        for sym in symb:
+            if sym in table_name:
+                table_name = table_name.replace(sym, '_')
+        new_db.create_table(table_name)
+        print(f'Создана таблица {table_name}')
+        count += 1
+    print(f'Созданы все таблицы - {count} шт')
     for item in dict_info()[0]:
         item.item_info()
-        new_db.create_table(item.shard)
         page_json_items = [page_json_item for pages in item.info
                                     for page_json_item in pages]
         for items in page_json_items:
@@ -95,16 +106,26 @@ def main():
                     name[1] = name[1].replace(sym,'_')
                 if sym in name_table:
                     name_table = name_table.replace(sym,'_')
-            list_db.append(f"INSERT INTO {item.shard}(id_item, name, brand) VALUES ({id},'{name[0]}','{name[1]}');")
+            list_db.append(
+                            (
+                                (f"SELECT * FROM {name_table} WHERE EXISTS(SELECT * FROM {name_table} WHERE id_item='{id}');"),
+                                (f"INSERT INTO {name_table}(id_item, name, brand) VALUES ('{id}','{name[0]}','{name[1]}');"),
+                                (f"UPDATE {name_table} SET name='{name[0]}',brand='{name[1]}' WHERE id_item='{id}';"),
+                                (f"SELECT * FROM {name_table} WHERE EXISTS(SELECT * FROM {name_table} WHERE id_item='{id}' AND name='{name[0]}' AND brand='{name[1]}');"),
+                            )
+                        )
         #print(list_db)
         new_db.insert_data(list_db)
-            # new_db.insert_data(id, name[0], name[1])
+        current_count += 1
+        print(f"Заполнено {current_count} из {count}")
+        # new_db.insert_data(id, name[0], name[1])
+        list_db = []
         need_info = {}
         # all_items[dict_info()[1][item.shard][1]] = page_json_items
         # page_info = write.Json_write(dict_info()[1][item.shard][1], page_json_items)
         # page_info.write_json()
         current_time = time.time()
-        print(f'[INFO] прошло времени: {time.gmtime(current_time - start_time)[4]} мин : {time.gmtime(current_time - start_time)[5]} сек : {time.gmtime(current_time - start_time)[6]} мс')
+        print(f'[INFO] прошло времени: {time.gmtime(current_time - start_time)[3]} ч : {time.gmtime(current_time - start_time)[4]} мин : {time.gmtime(current_time - start_time)[5]} сек')
     # global_info_json = write.Json_write('Список всех предметов', all_items)
     # global_info_json.write_json()
     end_time = time.time()    

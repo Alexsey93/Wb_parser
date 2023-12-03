@@ -70,11 +70,21 @@ class Psql_db():
         conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
         with conn.cursor() as cursor:
             conn.autocommit = True
+            time_start = time.time()
             for sql in list_db:
                 # print(sql)
-                time_start = time.time()
-                cursor.execute(sql)
-                time_end = time.time()
+                cursor.execute(sql[0])
+                if not(cursor.fetchall()):
+                    cursor.execute(sql[1])
+                    #print(f'Выполнена операция INSERT')
+                else:
+                    cursor.execute(sql[3])
+                    if not(cursor.fetchall()):
+                        cursor.execute(sql[2])
+                        #print(f'Выполнена операция UPDATE')
+                    #else:
+                        #print(f'Строка существует в БД')
+            time_end = time.time()
             print(f'время запроса - {time.gmtime(time_end - time_start)[4]} мин : {time.gmtime(time_end - time_start)[5]} : {time.gmtime(time_end - time_start)[6]}')
         conn.close() 
 
