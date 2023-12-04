@@ -37,7 +37,7 @@ class Psql_db():
             conn.autocommit = True
             try:
                 sql = f"""
-                        CREATE TABLE {name_table}
+                        CREATE TABLE IF NOT EXISTS {name_table}
                         (
                             id serial PRIMARY KEY,
                             id_item varchar(200),
@@ -45,6 +45,14 @@ class Psql_db():
                             brand varchar(200)
                         );
                 
+                """
+                cursor.execute(sql)
+                sql = f"""
+                        CREATE TABLE IF NOT EXISTS wb_category_items
+                        (
+                            id serial PRIMARY KEY,
+                            name_category varchar(200),
+                        );
                 """
                 cursor.execute(sql)
             except Exception as ex:
