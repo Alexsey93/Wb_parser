@@ -8,3 +8,4 @@ data
 *.cfg
 Parser
 wb_parser\async_parser.py
+test.py
