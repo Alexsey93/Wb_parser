@@ -77,18 +77,10 @@ def main():
     new_db = postgresql.Psql_db('wb_parser', 'alex', 'afbdogs', '212.26.248.159')
     new_db.create_database()
     list_db = []
-    count = 0
+    data_sql = []
+    #new_db.create_category_table(dict_info()[1])
+    new_db.create_table('All_items')
     current_count = 0
-    for shard, id in dict_info()[1].items():
-        table_name = shard
-        symb = ['/','\\','.',' ','-','\'']
-        for sym in symb:
-            if sym in table_name:
-                table_name = table_name.replace(sym, '_')
-        new_db.create_table(table_name)
-        print(f'Создана таблица {table_name}')
-        count += 1
-    print(f'Созданы все таблицы - {count} шт')
     for item in dict_info()[0]:
         item.item_info()
         page_json_items = [page_json_item for pages in item.info
@@ -98,7 +90,7 @@ def main():
         # print(need_info)
         for id, name in need_info.items():
             name_table = item.shard
-            symb = ['/','\\','.',' ','-','\'']
+            symb = ['/','\\','.',' ','-','\'','\"']
             for sym in symb:
                 if sym in name[0]:
                     name[0] = name[0].replace(sym,'_')
@@ -106,21 +98,27 @@ def main():
                     name[1] = name[1].replace(sym,'_')
                 if sym in name_table:
                     name_table = name_table.replace(sym,'_')
-            list_db.append(
-                            (
-                                (f"SELECT * FROM {name_table} WHERE EXISTS(SELECT * FROM {name_table} WHERE id_item='{id}');"),
-                                (f"INSERT INTO {name_table}(id_item, name, brand) VALUES ('{id}','{name[0]}','{name[1]}');"),
-                                (f"UPDATE {name_table} SET name='{name[0]}',brand='{name[1]}' WHERE id_item='{id}';"),
-                                (f"SELECT * FROM {name_table} WHERE EXISTS(SELECT * FROM {name_table} WHERE id_item='{id}' AND name='{name[0]}' AND brand='{name[1]}');"),
-                            )
-                        )
-        #print(list_db)
-        new_db.insert_data(list_db)
+            data_sql.append((id,name[0],name[1]))
+        data_sql_str = ''.join(str(e)+',' for e in data_sql)
+            #print(data_sql_str,'\n')
+        data_sql_res = list(data_sql_str)
+        data_sql_res[-1] = ''
+        data_sql_res = ''.join(data_sql_res)
+        insert_sql_data = f"INSERT INTO all_items (id_item, name, brand) VALUES {data_sql_res} ON CONFLICT (id) DO NOTHING;"
+        new_db.insert_sql_db(insert_sql_data)
+        insert_sql_data = ''
+            # list_db.append(
+            #                 (
+            #                     (f"SELECT * FROM All_items WHERE EXISTS(SELECT * FROM All_items WHERE id_item='{id}');"),
+            #                     (f"INSERT INTO All_items (id_item, name, brand) VALUES ('{id}','{name[0]}','{name[1]}');"),
+            #                     (f"UPDATE All_items SET name='{name[0]}',brand='{name[1]}' WHERE id_item='{id}';"),
+            #                     (f"SELECT * FROM All_items WHERE EXISTS(SELECT * FROM All_items WHERE id_item='{id}' AND name='{name[0]}' AND brand='{name[1]}');"),
+            #                 )
+            #             )
+        #print(insert_sql_data)
         current_count += 1
-        print(f"Заполнено {current_count} из {count}")
+        #print(f"Заполнено {current_count} из {new_db.count}")
         # new_db.insert_data(id, name[0], name[1])
-        list_db = []
-        need_info = {}
         # all_items[dict_info()[1][item.shard][1]] = page_json_items
         # page_info = write.Json_write(dict_info()[1][item.shard][1], page_json_items)
         # page_info.write_json()

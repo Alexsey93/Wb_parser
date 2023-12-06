@@ -28,8 +28,45 @@ class Psql_db():
                             conn.autocommit = True
                             cur.execute("DROP DATABASE wb_parser;")
                             cur.execute("CREATE DATABASE wb_parser;")
-            conn.close()  
-    
+            conn.close()
+            
+            
+    def create_category_table(self, info_items):
+        conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
+        with conn.cursor() as cursor:
+            self.count = 0
+            for shard, id in info_items.items():
+                table_name = shard
+                symb = ['/','\\','.',' ','-','\'']
+                for sym in symb:
+                    if sym in table_name:
+                        table_name = table_name.replace(sym, '_')
+                try:
+                    sql = f"""
+                            CREATE TABLE IF NOT EXISTS {table_name}
+                                (
+                                    id serial PRIMARY KEY,
+                                    id_item varchar(200),
+                                    name varchar(200),
+                                    brand varchar(200)
+                                );        
+                            """
+                    cursor.execute(sql)
+                    sql = f"""
+                            CREATE TABLE IF NOT EXISTS wb_category_items
+                                (
+                                    id serial PRIMARY KEY,
+                                    name_category varchar(200),
+                                );
+                            """
+                    cursor.execute(sql)
+                except Exception as ex:
+                    print(f'Ошибка при создании таблицы - {ex}')
+                print(f'Создана таблица {table_name}')
+                self.count += 1
+            print(f'Созданы все таблицы - {self.count} шт')
+        conn.close()
+        
     def create_table(self, name_table):
         self.name_table = name_table
         conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
@@ -40,19 +77,11 @@ class Psql_db():
                         CREATE TABLE IF NOT EXISTS {name_table}
                         (
                             id serial PRIMARY KEY,
-                            id_item varchar(200),
-                            name varchar(200),
-                            brand varchar(200)
+                            id_item varchar,
+                            name varchar,
+                            brand varchar
                         );
                 
-                """
-                cursor.execute(sql)
-                sql = f"""
-                        CREATE TABLE IF NOT EXISTS wb_category_items
-                        (
-                            id serial PRIMARY KEY,
-                            name_category varchar(200),
-                        );
                 """
                 cursor.execute(sql)
             except Exception as ex:
@@ -74,27 +103,34 @@ class Psql_db():
     #         """
     #         cursor.execute(sql)
     #     conn.close() 
-    def insert_data(self,list_db):
+    # def insert_data(self,list_db):
+    #     conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
+    #     with conn.cursor() as cursor:
+    #         conn.autocommit = True
+    #         time_start = time.time()
+    #         for sql in list_db:
+    #             # print(sql)
+    #             cursor.execute(sql[0])
+    #             if not(cursor.fetchall()):
+    #                 cursor.execute(sql[1])
+    #                 #print(f'Выполнена операция INSERT')
+    #             else:
+    #                 cursor.execute(sql[3])
+    #                 if not(cursor.fetchall()):
+    #                     cursor.execute(sql[2])
+    #                     #print(f'Выполнена операция UPDATE')
+    #                 #else:
+    #                     #print(f'Строка существует в БД')
+    #         time_end = time.time()
+    #         print(f'время запроса - {time.gmtime(time_end - time_start)[4]} мин : {time.gmtime(time_end - time_start)[5]} : {time.gmtime(time_end - time_start)[6]}')
+    #     conn.close() 
+
+    def insert_sql_db(self, sql):
         conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
         with conn.cursor() as cursor:
             conn.autocommit = True
-            time_start = time.time()
-            for sql in list_db:
-                # print(sql)
-                cursor.execute(sql[0])
-                if not(cursor.fetchall()):
-                    cursor.execute(sql[1])
-                    #print(f'Выполнена операция INSERT')
-                else:
-                    cursor.execute(sql[3])
-                    if not(cursor.fetchall()):
-                        cursor.execute(sql[2])
-                        #print(f'Выполнена операция UPDATE')
-                    #else:
-                        #print(f'Строка существует в БД')
-            time_end = time.time()
-            print(f'время запроса - {time.gmtime(time_end - time_start)[4]} мин : {time.gmtime(time_end - time_start)[5]} : {time.gmtime(time_end - time_start)[6]}')
-        conn.close() 
+            cursor.execute(sql)
+        conn.close()
 
 
 
