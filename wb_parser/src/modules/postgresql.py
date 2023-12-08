@@ -1,5 +1,6 @@
 import psycopg2
-import time
+# import time
+from psycopg2.extras import Json
 
 class Psql_db():
     
@@ -9,84 +10,79 @@ class Psql_db():
         self.password = password
         self.host = host
         
-    def create_database(self):
-            conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
-            with conn.cursor() as cursor:
-                conn.autocommit = True
-                try:
-                    sql = "CREATE DATABASE wb_parser;"
-                    cursor.execute(sql)
-                except Exception as ex:
-                    print(f'БД существует {ex}')
-                    print(f' хотите пересоздать БД?')
-                    if input() == 'N':
-                        pass 
-                    else:
-                        conn.close()
-                        conn = psycopg2.connect(dbname='postgres', user=self.user, password=self.password, host=self.host)
-                        with conn.cursor() as cur:
-                            conn.autocommit = True
-                            cur.execute("DROP DATABASE wb_parser;")
-                            cur.execute("CREATE DATABASE wb_parser;")
-            conn.close()
             
-            
-    def create_category_table(self, info_items):
+    def set_sql_request(self, sql_request):
         conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
         with conn.cursor() as cursor:
-            self.count = 0
-            for shard, id in info_items.items():
-                table_name = shard
-                symb = ['/','\\','.',' ','-','\'']
-                for sym in symb:
-                    if sym in table_name:
-                        table_name = table_name.replace(sym, '_')
-                try:
-                    sql = f"""
-                            CREATE TABLE IF NOT EXISTS {table_name}
-                                (
-                                    id serial PRIMARY KEY,
-                                    id_item varchar(200),
-                                    name varchar(200),
-                                    brand varchar(200)
-                                );        
-                            """
-                    cursor.execute(sql)
-                    sql = f"""
-                            CREATE TABLE IF NOT EXISTS wb_category_items
-                                (
-                                    id serial PRIMARY KEY,
-                                    name_category varchar(200),
-                                );
-                            """
-                    cursor.execute(sql)
-                except Exception as ex:
-                    print(f'Ошибка при создании таблицы - {ex}')
-                print(f'Создана таблица {table_name}')
-                self.count += 1
-            print(f'Созданы все таблицы - {self.count} шт')
+            cursor.execute(sql_request)
         conn.close()
         
-    def create_table(self, name_table):
-        self.name_table = name_table
+    def get_sql_response(self, sql_request):
+        conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
+        with conn.cursor() as cursor:
+            cursor.execute(sql_request)
+            request = cursor.fetchall()
+        conn.close()
+        return request
+    
+    def create_table(self, name_table, field_table):
         conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
         with conn.cursor() as cursor:
             conn.autocommit = True
             try:
-                sql = f"""
-                        CREATE TABLE IF NOT EXISTS {name_table}
-                        (
-                            id serial PRIMARY KEY,
-                            id_item varchar,
-                            name varchar,
-                            brand varchar
-                        );
-                
-                """
+                sql = f"CREATE TABLE IF NOT EXISTS {name_table} ({field_table});"
                 cursor.execute(sql)
             except Exception as ex:
-                print(f'Ошибка при создании таблицы - {ex}')
+                print(f'Ошибка при создании таблицы \n {ex}')
         conn.close()
+    
+    def create_database(self):
+        conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
+        with conn.cursor() as cursor:
+            try:
+                conn.autocommit = True
+                sql = "CREATE DATABASE wb_parser;"
+                cursor.execute(sql)
+            except Exception as ex:
+                print(f'произошла ошибка \n {ex}\nБД не будет создана \n')
+        conn.close()
+    
+    def json_to_bd(self, json_sql):
+        conn = psycopg2.connect(dbname='wb_parser', user='alex', password='afbdogs', host='212.26.248.159')
+        with conn.cursor() as cursor:
+            conn.autocommit = True
+            sql = f"""
+                    INSERT INTO test (test_json) VALUES (%s) ON CONFLICT DO NOTHING returning test_json
+            """
+            cursor.execute(sql, [Json(json_sql)])
+    
+    def bd_to_json(self):
+        conn = psycopg2.connect(dbname='wb_parser', user='alex', password='afbdogs', host='212.26.248.159')
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT test_json FROM test;")
+            self.sql_json =(cursor.fetchall())
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
     # def insert_data(self,id_item, name_item, brand):
     #     symb = ['/','\\','.',' ','-','\'']
@@ -124,13 +120,6 @@ class Psql_db():
     #         time_end = time.time()
     #         print(f'время запроса - {time.gmtime(time_end - time_start)[4]} мин : {time.gmtime(time_end - time_start)[5]} : {time.gmtime(time_end - time_start)[6]}')
     #     conn.close() 
-
-    def insert_sql_db(self, sql):
-        conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
-        with conn.cursor() as cursor:
-            conn.autocommit = True
-            cursor.execute(sql)
-        conn.close()
 
 
 
