@@ -31,42 +31,16 @@ from psycopg2.extras import Json
 #     test_l = test[i:i+100]
 #     i += 100
 #     print(test_l,'\n')
-
-def json_to_sql():
-        dict_info_d = {}
+json_sql = {}
+table_name = 'item_cat'
+column_name = 'name_cat_item,json_cat'
+values = f"'bl_shirts',"
+def json_to_db(json_sql, table_name, column_name, values):
         conn = psycopg2.connect(dbname='wb_parser', user='alex', password='afbdogs', host='212.26.248.159')
+        conn.autocommit = True
         with conn.cursor() as cursor:
-            conn.autocommit = True
-            test_table = f"""
-                        CREATE TABLE IF NOT EXISTS test
-                            (
-                                test_json jsonb    
-                            );
-            
-            """
-            cursor.execute(test_table)
-            with open ('data/menu.json', encoding="utf-8") as f:
-                name = json.load(f)
-                sql = f"""
-                        INSERT INTO test (test_json) VALUES (%s) ON CONFLICT DO NOTHING returning test_json
-                """
-                cursor.execute(sql, [Json(name)])
-                # cursor.execute("SELECT (test_json[0] -> 'childs')[0] -> 'id' FROM test;")
-                # print(cursor.fetchall())
-                cursor.execute("SELECT test_json FROM test;")
-                sql_json =(cursor.fetchall()[0])
-                sql_json = json.loads(json.dumps(sql_json))
-                for cat in sql_json[0]:
-                    if not('shard' in cat):
-                        if 'childs' in cat:
-                            for child in cat['childs']:
-                                if 'shard' in child:
-                                    print(child, '\n')
-                                    dict_info_d[child['shard']] = [child['id'],child['name']]
-                    elif cat['shard'] == 'blackhole':
-                        for child in cat['childs']:
-                            if 'shard' in child:
-                                dict_info_d[child['shard']] = [child['id'],child['name']]
-                print(dict_info_d)
-        conn.close()
-json_to_sql()
+            sql = f"INSERT INTO {table_name} ({column_name}) VALUES ({values}%s);"
+            print(sql)
+            cursor.execute(sql, [Json(json_sql)])
+
+json_to_db(json_sql, table_name, column_name, values)

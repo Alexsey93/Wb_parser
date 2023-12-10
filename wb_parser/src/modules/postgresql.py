@@ -13,12 +13,14 @@ class Psql_db():
             
     def set_sql_request(self, sql_request):
         conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
+        conn.autocommit = True
         with conn.cursor() as cursor:
             cursor.execute(sql_request)
         conn.close()
         
     def get_sql_response(self, sql_request):
         conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
+        conn.autocommit = True
         with conn.cursor() as cursor:
             cursor.execute(sql_request)
             request = cursor.fetchall()
@@ -27,10 +29,10 @@ class Psql_db():
     
     def create_table(self, name_table, field_table):
         conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
+        conn.autocommit = True
         with conn.cursor() as cursor:
-            conn.autocommit = True
             try:
-                sql = f"CREATE TABLE IF NOT EXISTS {name_table} ({field_table});"
+                sql = f"CREATE TABLE {name_table} ({field_table});"
                 cursor.execute(sql)
             except Exception as ex:
                 print(f'Ошибка при создании таблицы \n {ex}')
@@ -38,30 +40,31 @@ class Psql_db():
     
     def create_database(self):
         conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
+        conn.autocommit = True
         with conn.cursor() as cursor:
             try:
-                conn.autocommit = True
                 sql = "CREATE DATABASE wb_parser;"
                 cursor.execute(sql)
             except Exception as ex:
                 print(f'произошла ошибка \n {ex}\nБД не будет создана \n')
         conn.close()
     
-    def json_to_bd(self, json_sql):
-        conn = psycopg2.connect(dbname='wb_parser', user='alex', password='afbdogs', host='212.26.248.159')
+    def json_to_db(self, json_sql, table_name, column_name, values):
+        conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
+        conn.autocommit = True
         with conn.cursor() as cursor:
-            conn.autocommit = True
-            sql = f"""
-                    INSERT INTO test (test_json) VALUES (%s) ON CONFLICT DO NOTHING returning test_json
-            """
+            sql = f"INSERT INTO {table_name} ({column_name}) VALUES ({values}%s);"
+            print(sql)
             cursor.execute(sql, [Json(json_sql)])
-    
-    def bd_to_json(self):
-        conn = psycopg2.connect(dbname='wb_parser', user='alex', password='afbdogs', host='212.26.248.159')
+            
+    def db_to_json(self,column_name, table_name):
+        conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
+        conn.autocommit = True
         with conn.cursor() as cursor:
-            cursor.execute("SELECT test_json FROM test;")
-            self.sql_json =(cursor.fetchall())
-        
+            cursor.execute(f"SELECT {column_name} FROM {table_name};")
+            self.sql_json =(cursor.fetchall()[0])
+        conn.close()
+        return self.sql_json
         
         
         
