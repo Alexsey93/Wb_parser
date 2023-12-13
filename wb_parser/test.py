@@ -39,8 +39,14 @@ def json_to_db(json_sql, table_name, column_name, values):
         conn = psycopg2.connect(dbname='wb_parser', user='alex', password='afbdogs', host='212.26.248.159')
         conn.autocommit = True
         with conn.cursor() as cursor:
-            sql = f"INSERT INTO {table_name} ({column_name}) VALUES ({values}%s);"
-            print(sql)
-            cursor.execute(sql, [Json(json_sql)])
+            count = 0
+            sql = "SELECT json_cat,name_cat_item FROM item_cat WHERE name_cat_item='bl_shirts';"
+            cursor.execute(sql)
+            items = cursor.fetchall()
+            for item in items[0][0]:
+                count += 1
+            print(count)
+            
+        conn.close()
 
 json_to_db(json_sql, table_name, column_name, values)

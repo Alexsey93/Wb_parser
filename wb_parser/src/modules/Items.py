@@ -14,9 +14,10 @@ class Items_json():
     def __init__(self, sql_response):
         self.sql_response = sql_response
         self.dict_info_cat = {}
-        
-    def get_info(self, name_cat, id_cat):
-        self.info = []
+            
+    @staticmethod    
+    def get_info(name_cat, id_cat):
+        info = {}
         HEADERS_WB = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0',
     'Accept': '*/*',
@@ -39,20 +40,19 @@ class Items_json():
                     try:
                         r = session.get(f'https://catalog.wb.ru/catalog/{name_cat}/catalog?TestGroup=no_test&TestID=no_test&appType=1&cat={id_cat[0]}&curr=rub&dest=-1257786&page={page}')
                         print(f'категория --- {name_cat} --- страница в категории --- {page} --- {r.status_code} \n')
-                        page += 1
                         #print(r.json()['data']['products'])
-                        self.info = (r.json().get('data').get('products'))
+                        info[str(page)] = (r.json().get('data').get('products'))
+                        page += 1
                     except Exception as ex:
                         print(f'Возникла ошибка {ex}\n')
                         print(f'попытка подключения {ret} из {max_retry} вероятно достигнут конец пагинации\n')
                         page -= 1
                         break
         print(f'Переход к следующей категории\n')
-        return self.info
+        return info
                     
                 #time.sleep(0.5)
     def cat_info(self, sql_response):
-        self.dict_info_cat = {}
         sql_json = json.loads(json.dumps(sql_response))
         for cat in sql_json[0]:
             if not('shard' in cat):

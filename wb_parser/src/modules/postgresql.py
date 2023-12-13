@@ -54,7 +54,7 @@ class Psql_db():
         conn.autocommit = True
         with conn.cursor() as cursor:
             sql = f"INSERT INTO {table_name} ({column_name}) VALUES ({values}%s);"
-            print(sql)
+            #print(sql)
             cursor.execute(sql, [Json(json_sql)])
             
     def db_to_json(self,column_name, table_name):
