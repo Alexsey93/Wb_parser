@@ -6,6 +6,5 @@
 data
 #конфигурация
 *.cfg
-Parser
-wb_parser\async_parser.py
+#служебный тестовый файл
 test.py

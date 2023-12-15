@@ -40,11 +40,14 @@ def json_to_db(json_sql, table_name, column_name, values):
         conn.autocommit = True
         with conn.cursor() as cursor:
             count = 0
-            sql = "SELECT json_cat,name_cat_item FROM item_cat WHERE name_cat_item='bl_shirts';"
+            sql = "SELECT json_page FROM bl_shirts;"
             cursor.execute(sql)
             items = cursor.fetchall()
-            for item in items[0][0]:
-                count += 1
+            for item in items:
+                for i in item:
+                    for k in i:
+                        print(k['id'],k['name'],k['brand'],int(k['salePriceU'])/100, '\n\n')
+                        count += 1
             print(count)
             
         conn.close()

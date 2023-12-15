@@ -44,7 +44,6 @@ class Parser():
         field_table = (f"{fields}")
         print(field_table)
         db.create_table(name_table, fields)
-        db.create_table('item_cat',('id SERIAL PRIMARY KEY, name_cat_item varchar, page integer, json_cat jsonb'))
         db.create_table('cat_info',('id SERIAL PRIMARY KEY, id_cat integer UNIQUE, name_cat varchar'))
         db.create_table('item_info',('id SERIAL PRIMARY KEY, id_item integer UNIQUE, name_item varchar, brand_item varchar, price_item integer'))
         print(f'БД и таблицы созданы')
@@ -71,7 +70,7 @@ def main():
     wb_parser = Parser(URL, HEADERS_WB)
     json_data = wb_parser.get_data_json()
     db = wb_parser.create_db('wb_json','id SERIAL PRIMARY KEY, wb_cat_json jsonb') 
-    db[0].json_to_db(json_data, 'wb_json', 'wb_cat_json','')
+    db[0].json_to_db(json_data, 'wb_json', 'wb_cat_json','', unique_field='id', update_field='wb_cat_json')
     cat_data = db[0].db_to_json('wb_cat_json', 'wb_json')
     wb_items = Items.Items_json(cat_data)
     wb_items.cat_info(cat_data)
@@ -80,21 +79,27 @@ def main():
     for name_cat, id_cat in cat_json.items():
         print(name_cat,id_cat)
         db[0].set_sql_request(f"INSERT INTO cat_info (id_cat,name_cat) VALUES ({id_cat[0]},'{name_cat}') ON CONFLICT (id_cat) DO NOTHING;")
-    print(f"Заполнена информация по категориям в БД")
+    #print(f"Заполнена информация по категориям в БД")
     if input('хотите обновить данные для внесения в БД? Введите Y') == 'Y':
         for name_cat, id_cat in cat_json.items():
             temp = wb_items.get_info(name_cat, id_cat)
-            for page_data, values in temp.items():
-                db[0].json_to_db(json_sql=values, table_name='item_cat', column_name='name_cat_item,page,json_cat', values=f"'{name_cat}',{int(page_data)},")
-                current_time = time.time()
+            if input(f'хотите обновить данные в каталоге {name_cat}? Введите Y') == 'Y':
+                db[0].create_table(f'{name_cat}',('id SERIAL PRIMARY KEY, page integer UNIQUE, json_page jsonb'))
+                for page_data, values in temp.items():
+                #print(page_data)
+                    db[0].json_to_db(json_sql=values, table_name=f'{name_cat}', column_name='page,json_page', values=f"{int(page_data)},", unique_field='page', update_field='json_page')
+                    current_time = time.time()
+                #print(f'[INFO] прошло времени: {time.gmtime(current_time - start_time)[3]} ч : {time.gmtime(current_time - start_time)[4]} мин : {time.gmtime(current_time - start_time)[5]} сек')
+            current_time = time.time()
             print(f'[INFO] прошло времени: {time.gmtime(current_time - start_time)[3]} ч : {time.gmtime(current_time - start_time)[4]} мин : {time.gmtime(current_time - start_time)[5]} сек')  
             temp = {}
     current_time = time.time()
+    # test = db[0].get_sql_response(f"SELECT json_cat FROM item_cat WHERE name_cat_item='bl_shirts' AND page='1';")
+    # print(test)
     # print(f'Создана БД всех предметов')
     # with open ('data/items_info.csv', 'w') as f:
     #     writer = csv.writer(f)
     #     writer.writerow(db[1])
-    list_all_items = db[0].get_sql_response("SELECT json_cat,name_cat_item FROM item_cat;")
     #print(list_all_items[123][0][2], list_all_items[123][1])
     # list_dict = []
     # dict_cat = {}

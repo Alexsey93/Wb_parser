@@ -49,13 +49,14 @@ class Psql_db():
                 print(f'произошла ошибка \n {ex}\nБД не будет создана \n')
         conn.close()
     
-    def json_to_db(self, json_sql, table_name, column_name, values):
+    def json_to_db(self, json_sql, table_name, column_name, values, unique_field, update_field):
         conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
         conn.autocommit = True
         with conn.cursor() as cursor:
-            sql = f"INSERT INTO {table_name} ({column_name}) VALUES ({values}%s);"
+            
+            sql = f'INSERT INTO "{table_name}" ({column_name}) VALUES ({values}%s) ON CONFLICT ({unique_field}) DO UPDATE SET {update_field}=%s;'
             #print(sql)
-            cursor.execute(sql, [Json(json_sql)])
+            cursor.execute(sql, [Json(json_sql),Json(json_sql)])
             
     def db_to_json(self,column_name, table_name):
         conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
