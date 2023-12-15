@@ -3,12 +3,6 @@ import time
 from pydantic import BaseModel 
 import json
 
-# class pars_item(BaseModel):
-#     name : str
-#     price : int
-#     brand : str
-    
-
 class Items_json():
     
     def __init__(self, sql_response):
@@ -33,26 +27,19 @@ class Items_json():
         with requests.Session() as session:
             max_retry = 15      
             page = 1
-            for ret in range(max_retry):
+            for retry in range(max_retry):
                 time.sleep(0.2)
                 while True:
                     try:
-                        r = session.get(f'https://catalog.wb.ru/catalog/{name_cat}/catalog?TestGroup=no_test&TestID=no_test&appType=1&cat={id_cat[0]}&curr=rub&dest=-1257786&page={page}')
-                        #print(f'категория --- {name_cat} --- страница в категории --- {page} --- {r.status_code} \n')
-                        #print(r.json()['data']['products'])
-                        info[str(page)] = (r.json().get('data').get('products'))
+                        response = session.get(f'https://catalog.wb.ru/catalog/{name_cat}/catalog?TestGroup=no_test&TestID=no_test&appType=1&cat={id_cat[0]}&curr=rub&dest=-1257786&page={page}')
+                        info[str(page)] = (response.json().get('data').get('products'))
                         page += 1
-                    except Exception as ex:
-                        #print(f'Возникла ошибка {ex}\n')
-                        #print(f'попытка подключения {ret} из {max_retry} вероятно достигнут конец пагинации\n')
-                        #page -= 1
+                    except Exception as exeption:
                         break
-        #print(f'Переход к следующей категории\n')
         return info
                     
-                #time.sleep(0.5)
     def cat_info(self, sql_response):
-        symb = f'\"-=+,./\\ '
+        symb = f'\"-=+,./\\ \''
         sql_json = json.loads(json.dumps(sql_response))
         for cat in sql_json[0]:
             if not('shard' in cat):

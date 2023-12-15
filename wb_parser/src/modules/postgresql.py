@@ -39,15 +39,26 @@ class Psql_db():
         conn.close()
     
     def create_database(self):
-        conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
-        conn.autocommit = True
-        with conn.cursor() as cursor:
-            try:
+        try:
+            conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
+            conn.autocommit = True
+            with conn.cursor() as cursor:
                 sql = "CREATE DATABASE wb_parser;"
                 cursor.execute(sql)
+        except Exception as ex:
+            print(f'произошла ошибка \n {ex}\n Попытка пересоздать БД \n')
+            try:
+                conn = psycopg2.connect(dbname='postgres', user=self.user, password=self.password, host=self.host)
+                conn.autocommit = True
+                with conn.cursor() as cursor:
+                    sql = "CREATE DATABASE wb_parser;"
+                    cursor.execute(sql)
             except Exception as ex:
-                print(f'произошла ошибка \n {ex}\nБД не будет создана \n')
-        conn.close()
+                print(f'произошла ошибка \n {ex}\n Попытка пересоздать БД \n')
+            finally:
+                conn.close()
+        finally:
+            conn.close()
     
     def json_to_db(self, json_sql, table_name, column_name, values, unique_field, update_field):
         conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
@@ -55,7 +66,6 @@ class Psql_db():
         with conn.cursor() as cursor:
             
             sql = f'INSERT INTO "{table_name}" ({column_name}) VALUES ({values}%s) ON CONFLICT ({unique_field}) DO UPDATE SET {update_field}=%s;'
-            #print(sql)
             cursor.execute(sql, [Json(json_sql),Json(json_sql)])
             
     def db_to_json(self,column_name, table_name):
@@ -67,7 +77,18 @@ class Psql_db():
         conn.close()
         return self.sql_json
         
-        
+    def create_schemas(self, name_schemas):
+        conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
+        conn.autocommit = True
+        with conn.cursor() as cursor:
+            try:
+                sql=f'CREATE SCHEMA IF NOT EXISTS {name_schemas};'
+                cursor.execute(sql)
+            except Exception as exception:
+                print(f'{exception}')
+            finally: 
+                conn.close()   
+            
         
         
         

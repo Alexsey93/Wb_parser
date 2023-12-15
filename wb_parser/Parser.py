@@ -28,102 +28,91 @@ class Parser():
     def __init__(self, url, header):
         self.__url = url
         self.__header = header
+        self.db = postgresql.Psql_db('wb_parser', 'alex', 'afbdogs', '212.26.248.159')
+        self.wb_items = Items.Items_json(self.add_json_cat_to_bd())
         
     def get_page(self):
         return requests.get(self.__url, self.__header).text
     
     def get_data_json(self):
-        cat_json = json.Json_funct()
-        cat_json.read_json(self.get_page())
+        self.cat_json = json.Json_funct()
+        self.cat_json.read_json(self.get_page())
         print(f'Получены данные по категориям формата JSON',)
-        return cat_json.data_json
+        return self.cat_json.data_json
     
     def create_db(self, name_table, fields):
-        db = postgresql.Psql_db('wb_parser', 'alex', 'afbdogs', '212.26.248.159')
-        db.create_database()
+        self.db.create_database()
         field_table = (f"{fields}")
         print(field_table)
-        db.create_table(name_table, fields)
-        db.create_table('cat_info',('id SERIAL PRIMARY KEY, id_cat integer UNIQUE, name_cat varchar'))
-        db.create_table('item_info',('id SERIAL PRIMARY KEY, id_item integer UNIQUE, name_item varchar, brand_item varchar, price_item integer'))
-        print(f'БД и таблицы созданы')
-        return db,[["id",    "name"],["brand", "price"]]   
-    # def make_folder(self):
-    #     folder = "data"
-    #     if os.path.exists(folder) == True:
-    #         print("Найдена папка, хотите перезаписать?")
-    #         if input("Если да, введите Y, если нет, введите N ") == "Y":
-    #             shutil.rmtree(folder)
-    #             os.mkdir(folder)
-    #     else:
-    #         os.mkdir(folder)
-    #         print(f'{folder}')
-    def csv_writer():
-        pass        
-
-
-
-
+        self.db.create_table(name_table, fields)
+        self.db.create_table('cat_info',('id SERIAL PRIMARY KEY, id_cat integer UNIQUE, name_cat varchar'))
+        print(f'БД и таблицы созданы')  
+    
+    def add_json_cat_to_bd(self):
+        self.create_db('wb_json','id SERIAL PRIMARY KEY, wb_cat_json jsonb')
+        self.db.json_to_db(self.get_data_json(), 'wb_json', 'wb_cat_json','', unique_field='id', update_field='wb_cat_json')
+        self.cat_data = self.db.db_to_json('wb_cat_json', 'wb_json')
+        return self.cat_data
+        
+    def get_cat_data(self):
+        self.wb_items.cat_info(self.cat_data)
+        self.cat_json_data = self.wb_items.dict_info_cat
+        
+    def create_cat_info(self):
+        self.get_cat_data()
+        for name_cat, id_cat in self.cat_json_data.items():
+            print(name_cat,id_cat)
+            self.db.set_sql_request(f"INSERT INTO cat_info (id_cat,name_cat) VALUES ({id_cat[0]},'{name_cat}') ON CONFLICT (id_cat) DO NOTHING;")
+    
+    def add_page_cat_to_bd(self):
+        symb = f'\"-=+,./\\ \''
+        self.get_cat_data()
+        self.db.create_schemas('item_pages')
+        for name_cat, id_cat in self.cat_json_data.items():
+            temp = self.wb_items.get_info(name_cat, id_cat)
+            self.db.create_table(f'item_pages.{name_cat}',('id SERIAL PRIMARY KEY, json_page jsonb'))
+            for page_data, values in temp.items():
+                self.db.json_to_db(json_sql=values, table_name=f'item_pages.{name_cat}', column_name='json_page', values=f"", unique_field='id', update_field='json_page')
+            temp = {}
+            print(f'Выполнена вставка категории {name_cat}')   
+            
+    def parse_info_to_item(self):
+        symb = f'\"-=+,./\\ \''
+        self.get_cat_data()
+        self.db.create_schemas('items_info')
+        for name_cat, id_cat in self.cat_json_data.items():
+            self.db.create_table(f'items_info.items_{name_cat}',('id_item INTEGER PRIMARY KEY,name_item varchar'))
+            items = self.db.get_sql_response(f"SELECT json_page FROM {name_cat};")
+            for item in items:
+                for i in item:
+                    for k in i:
+                        print(k['id'],k['name'],k['brand'],int(k['salePriceU'])/100, '\n\n')
+                        name_brand = k['brand']
+                        name_item = k['name']
+                        for s in symb:
+                            if s in name_item:
+                                name_item = name_item.replace(s,'_')
+                            if s in name_brand:
+                                name_brand = name_brand.replace(s,'_')
+                        self.db.set_sql_request(f"INSERT INTO items_info.items_{name_cat} (id_item,name_item) VALUES ('{k['id']}','{name_item}') ON CONFLICT (id_item) DO NOTHING;")
+    
+    # def csv_writer():
+    #     pass        
 
 def main():
+    symb = f'\"-=+,./\\ \''
     start_time = time.time()
     wb_parser = Parser(URL, HEADERS_WB)
-    json_data = wb_parser.get_data_json()
-    db = wb_parser.create_db('wb_json','id SERIAL PRIMARY KEY, wb_cat_json jsonb') 
-    db[0].json_to_db(json_data, 'wb_json', 'wb_cat_json','', unique_field='id', update_field='wb_cat_json')
-    cat_data = db[0].db_to_json('wb_cat_json', 'wb_json')
-    wb_items = Items.Items_json(cat_data)
-    wb_items.cat_info(cat_data)
-    cat_json = wb_items.dict_info_cat
-    count_t = 0
-    for name_cat, id_cat in cat_json.items():
-        print(name_cat,id_cat)
-        db[0].set_sql_request(f"INSERT INTO cat_info (id_cat,name_cat) VALUES ({id_cat[0]},'{name_cat}') ON CONFLICT (id_cat) DO NOTHING;")
-    #print(f"Заполнена информация по категориям в БД")
+    wb_parser.add_json_cat_to_bd()
+    wb_parser.create_cat_info()
     if input('хотите обновить данные для внесения в БД? Введите Y') == 'Y':
-        for name_cat, id_cat in cat_json.items():
-            temp = wb_items.get_info(name_cat, id_cat)
-            if input(f'хотите обновить данные в каталоге {name_cat}? Введите Y') == 'Y':
-                db[0].create_table(f'{name_cat}',('id SERIAL PRIMARY KEY, page integer UNIQUE, json_page jsonb'))
-                for page_data, values in temp.items():
-                #print(page_data)
-                    db[0].json_to_db(json_sql=values, table_name=f'{name_cat}', column_name='page,json_page', values=f"{int(page_data)},", unique_field='page', update_field='json_page')
-                    current_time = time.time()
-                #print(f'[INFO] прошло времени: {time.gmtime(current_time - start_time)[3]} ч : {time.gmtime(current_time - start_time)[4]} мин : {time.gmtime(current_time - start_time)[5]} сек')
-            current_time = time.time()
-            print(f'[INFO] прошло времени: {time.gmtime(current_time - start_time)[3]} ч : {time.gmtime(current_time - start_time)[4]} мин : {time.gmtime(current_time - start_time)[5]} сек')  
-            temp = {}
+        wb_parser.add_page_cat_to_bd()
+    wb_parser.parse_info_to_item()
     current_time = time.time()
-    # test = db[0].get_sql_response(f"SELECT json_cat FROM item_cat WHERE name_cat_item='bl_shirts' AND page='1';")
-    # print(test)
-    # print(f'Создана БД всех предметов')
-    # with open ('data/items_info.csv', 'w') as f:
-    #     writer = csv.writer(f)
-    #     writer.writerow(db[1])
-    #print(list_all_items[123][0][2], list_all_items[123][1])
-    # list_dict = []
-    # dict_cat = {}
-
-    # for items_cat in list_all_items:
-    # #     print(type(items_cat))
-    #     for items in items_cat[0]:
-                # print(item, '\n\n')
-        # print(count_t, items_cat[1],'\n\n')
-    #     for items in items_cat[0]:
-    #         print(items, '\n\n')
-            # for item in items:
-            #     dict_cat[items_cat[1]] = (
-            #                                             {"Имя товара":f"{items['name']}",
-            #                                             "Бренд товара":f"{items['brand']}",
-            #                                             "Цена товара":f"{items['salePriceU']}",
-            #                                             }
-            #                             )  
-    # for item_t, item in dict_cat.items():
-    #     print(item_t, item, '\n')
     print(f'[INFO] прошло времени: {time.gmtime(current_time - start_time)[3]} ч : {time.gmtime(current_time - start_time)[4]} мин : {time.gmtime(current_time - start_time)[5]} сек')  
+
 if __name__ == '__main__':
     main()
-#         print(key, " ", value, '\n')
     
                     
     
