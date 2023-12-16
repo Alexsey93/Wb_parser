@@ -68,6 +68,14 @@ class Psql_db():
             cursor.execute(sql, [Json(json_sql),Json(json_sql)])
         conn.close()
         
+    def json_to_db_many(self, json_sql, table_name, column_name, unique_field, update_field):
+        conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
+        conn.autocommit = True
+        with conn.cursor() as cursor:
+            sql = f"INSERT INTO {table_name} ({column_name}) VALUES (%s);"
+            cursor.executemany(sql, [[Json(json_src)] for json_src in json_sql])
+        conn.close()
+        
     def db_to_json(self,column_name, table_name):
         conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
         conn.autocommit = True

@@ -32,8 +32,13 @@ class Items_json():
                 while True:
                     try:
                         response = session.get(f'https://catalog.wb.ru/catalog/{name_cat}/catalog?TestGroup=no_test&TestID=no_test&appType=1&cat={id_cat[0]}&curr=rub&dest=-1257786&page={page}')
-                        info[str(page)] = (response.json().get('data').get('products'))
-                        page += 1
+                        if response.json().get('data').get('products'):
+                            info[str(page)] = (response.json().get('data').get('products'))
+                            print(f'Обработана {page}')
+                            page += 1
+                        else:
+                            print(f'Нет json переход к следующей категории')
+                            break
                     except Exception as exeption:
                         break
         return info
@@ -41,6 +46,9 @@ class Items_json():
     def cat_info(self, sql_response):
         symb = f'\"-=+,./\\ \''
         sql_json = json.loads(json.dumps(sql_response))
+        test_cat = {}
+        # with open ('data.json', 'w', encoding='utf8') as f:
+        #     json.dump(sql_json[0], f, ensure_ascii=False, indent=4)
         for childs in sql_json[0]:
             if 'childs' in childs:
                 for childs_2l in childs['childs']:

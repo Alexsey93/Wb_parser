@@ -6,6 +6,7 @@ from src.modules import Items
 from src.modules import json
 from src.modules import postgresql
 import csv
+from psycopg2.extras import Json
 
 URL = 'https://static-basket-01.wb.ru/vol0/data/main-menu-ru-ru-v2.json'
 HEADERS_WB = {
@@ -67,13 +68,17 @@ class Parser():
             self.db.set_sql_request(f"INSERT INTO cat_info (shard_cat,id_cat,name_cat,url) VALUES ('{name_cat}',{info[0]},'{info[1]}','{info[2]}') ON CONFLICT (id_cat) DO NOTHING;")
     
     def add_page_cat_to_bd(self):
+        pages_list = ''
+        values_list = []
         symb = f'\"-=+,./\\ \''
         self.get_cat_data()
         for name_cat, id_cat in self.cat_json_data.items():
             temp = self.wb_items.get_info(name_cat, id_cat)
             self.db.create_table(f"item_pages.{name_cat}",('id SERIAL PRIMARY KEY, json_page jsonb'))
             for page_data, values in temp.items():
-                self.db.json_to_db(json_sql=values, table_name=f"item_pages.{name_cat}", column_name='json_page', values=f"", unique_field='id', update_field='json_page')
+                values_list.append(values)
+            self.db.json_to_db_many(json_sql=values_list, table_name=f"item_pages.{name_cat}", column_name='json_page', unique_field='id', update_field='json_page')
+            values_list = []
             temp = {}
             print(f'Выполнена вставка категории {name_cat}')
             current_time = time.time()
@@ -85,7 +90,7 @@ class Parser():
         self.get_cat_data()
         for name_cat, id_cat in self.cat_json_data.items():
             self.db.create_table(f'items_info.items_{name_cat}',('id_item INTEGER PRIMARY KEY,name_item varchar'))
-            items = self.db.get_sql_response(f"SELECT json_page FROM {name_cat};")
+            items = self.db.get_sql_response(f"SELECT json_page FROM item_pages.{name_cat};")
             for item in items:
                 for i in item:
                     for k in i:
@@ -98,10 +103,11 @@ class Parser():
                                 name_brand = name_brand.replace(s,'_')
                         #sql_request.append(f"INSERT INTO items_info.items_{name_cat} (id_item,name_item) VALUES ('{k['id']}','{name_item}') ON CONFLICT (id_item) DO NOTHING;")
                         sql_values = sql_values + (f"('{k['id']}', '{name_item}'),")
-            req_list = list(sql_values)
-            del req_list[-1]
-            sql_values = "".join(req_list)
             sql_request = f"INSERT INTO items_info.items_{name_cat} (id_item,name_item) VALUES {(sql_values)} ON CONFLICT (id_item) DO NOTHING;"
+            tmp = list(sql_request)
+            del tmp[-35]
+            sql_request = ''.join(tmp)
+            #print(sql_request)
             self.db.set_sql_request(sql_request)
             sql_request = ''
             sql_values = ''
@@ -113,6 +119,7 @@ class Parser():
 
 def main():
     symb = f'\"-=+,./\\ \''
+    start_time = time.time()
     wb_parser = Parser(URL, HEADERS_WB)
     wb_parser.add_json_cat_to_bd()
     wb_parser.create_cat_info()
