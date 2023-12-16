@@ -64,10 +64,10 @@ class Psql_db():
         conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
         conn.autocommit = True
         with conn.cursor() as cursor:
-            
-            sql = f'INSERT INTO "{table_name}" ({column_name}) VALUES ({values}%s) ON CONFLICT ({unique_field}) DO UPDATE SET {update_field}=%s;'
+            sql = f'INSERT INTO {table_name} ({column_name}) VALUES ({values}%s) ON CONFLICT ({unique_field}) DO UPDATE SET {update_field}=%s;'
             cursor.execute(sql, [Json(json_sql),Json(json_sql)])
-            
+        conn.close()
+        
     def db_to_json(self,column_name, table_name):
         conn = psycopg2.connect(dbname=self.db_name, user=self.user, password=self.password, host=self.host)
         conn.autocommit = True

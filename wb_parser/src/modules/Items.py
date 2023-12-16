@@ -41,22 +41,59 @@ class Items_json():
     def cat_info(self, sql_response):
         symb = f'\"-=+,./\\ \''
         sql_json = json.loads(json.dumps(sql_response))
-        for cat in sql_json[0]:
-            if not('shard' in cat):
-                if 'childs' in cat:
-                    for child in cat['childs']:
-                        if 'shard' in child:
-                            name = str(child['shard'])
+        for childs in sql_json[0]:
+            if 'childs' in childs:
+                for childs_2l in childs['childs']:
+                    if 'childs' in childs_2l:
+                        for childs_3l in childs_2l['childs']:
+                            if 'childs' in childs_3l:
+                                #print('достигнут 3 уровень, имеется 4')
+                                for childs_4l in childs_3l['childs']:
+                                    if 'childs' in childs_4l:
+                                        #print('достигнут 4 уровень, имеется 5')
+                                        for childs_5l in childs_4l['childs']:
+                                            if 'childs' in childs_5l:
+                                                print('достигнут 5 уровень , имеется 6')
+                                            else:
+                                                shard = childs_5l['shard']
+                                                name = childs_5l['name']
+                                                url = childs_5l['url']
+                                                for s in symb:
+                                                    if s in shard:
+                                                        shard = shard.replace(s,'_')
+                                                self.dict_info_cat[shard] = childs_5l['id'], name, url
+                                    else:
+                                        shard = childs_4l['shard']
+                                        name = childs_4l['name']
+                                        url = childs_4l['url']
+                                        for s in symb:
+                                            if s in shard:
+                                                shard = shard.replace(s,'_')
+                                        self.dict_info_cat[shard] = childs_4l['id'], name, url
+                            else:
+                                if 'shard' in childs_3l:
+                                    shard = childs_3l['shard']
+                                    name = childs_3l['name']
+                                    url = childs_3l['url']
+                                    for s in symb:
+                                        if s in shard:
+                                            shard = shard.replace(s,'_')
+                                    self.dict_info_cat[shard] = childs_3l['id'], name, url
+                    else:
+                        if 'shard' in childs_2l:
+                            shard = childs_2l['shard']
+                            name = childs_2l['name']
+                            url = childs_2l['url']
                             for s in symb:
-                                if s in name:
-                                    name = name.replace(s,'_')
-                            self.dict_info_cat[name] = [child['id'],child['name']]
-            elif cat['shard'] == 'blackhole':
-                for child in cat['childs']:
-                    if 'shard' in child:
-                        name = str(child['shard'])
-                        for s in symb:
-                            if s in name:
-                                name = name.replace(s,'_')
-                        self.dict_info_cat[name] = [child['id'],child['name']]                           
-    
+                                if s in shard:
+                                    shard = shard.replace(s,'_')
+                            self.dict_info_cat[shard] = childs_2l['id'], name, url
+            else:
+                if 'shard' in childs:
+                    shard = childs['shard']
+                    name = childs['name']
+                    url = childs['url']
+                    for s in symb:
+                        if s in shard:
+                            shard = shard.replace(s,'_')
+                    self.dict_info_cat[shard] = childs['id'], name, url

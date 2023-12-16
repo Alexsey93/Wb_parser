@@ -29,7 +29,8 @@ class Parser():
         self.__url = url
         self.__header = header
         self.db = postgresql.Psql_db('wb_parser', 'alex', 'afbdogs', '212.26.248.159')
-        self.wb_items = Items.Items_json(self.add_json_cat_to_bd())
+        self.create_db('wb_json','id SERIAL PRIMARY KEY, wb_cat_json jsonb')
+        self.start_time = time.time()
         
     def get_page(self):
         return requests.get(self.__url, self.__header).text
@@ -37,20 +38,22 @@ class Parser():
     def get_data_json(self):
         self.cat_json = json.Json_funct()
         self.cat_json.read_json(self.get_page())
-        print(f'Получены данные по категориям формата JSON',)
         return self.cat_json.data_json
     
     def create_db(self, name_table, fields):
         self.db.create_database()
-        field_table = (f"{fields}")
-        print(field_table)
+        self.db.create_schemas('public')
+        self.db.create_schemas('item_pages')
+        self.db.create_schemas('items_info')
         self.db.create_table(name_table, fields)
-        self.db.create_table('cat_info',('id SERIAL PRIMARY KEY, id_cat integer UNIQUE, name_cat varchar'))
+        self.db.create_table('cat_info',('id SERIAL PRIMARY KEY,shard_cat varchar,id_cat integer UNIQUE, name_cat varchar, url varchar'))
         print(f'БД и таблицы созданы')  
     
     def add_json_cat_to_bd(self):
-        self.create_db('wb_json','id SERIAL PRIMARY KEY, wb_cat_json jsonb')
         self.db.json_to_db(self.get_data_json(), 'wb_json', 'wb_cat_json','', unique_field='id', update_field='wb_cat_json')
+        self.wb_items = Items.Items_json(self.get_json_cat())
+    
+    def get_json_cat(self):
         self.cat_data = self.db.db_to_json('wb_cat_json', 'wb_json')
         return self.cat_data
         
@@ -60,33 +63,32 @@ class Parser():
         
     def create_cat_info(self):
         self.get_cat_data()
-        for name_cat, id_cat in self.cat_json_data.items():
-            print(name_cat,id_cat)
-            self.db.set_sql_request(f"INSERT INTO cat_info (id_cat,name_cat) VALUES ({id_cat[0]},'{name_cat}') ON CONFLICT (id_cat) DO NOTHING;")
+        for name_cat, info in self.cat_json_data.items():
+            self.db.set_sql_request(f"INSERT INTO cat_info (shard_cat,id_cat,name_cat,url) VALUES ('{name_cat}',{info[0]},'{info[1]}','{info[2]}') ON CONFLICT (id_cat) DO NOTHING;")
     
     def add_page_cat_to_bd(self):
         symb = f'\"-=+,./\\ \''
         self.get_cat_data()
-        self.db.create_schemas('item_pages')
         for name_cat, id_cat in self.cat_json_data.items():
             temp = self.wb_items.get_info(name_cat, id_cat)
-            self.db.create_table(f'item_pages.{name_cat}',('id SERIAL PRIMARY KEY, json_page jsonb'))
+            self.db.create_table(f"item_pages.{name_cat}",('id SERIAL PRIMARY KEY, json_page jsonb'))
             for page_data, values in temp.items():
-                self.db.json_to_db(json_sql=values, table_name=f'item_pages.{name_cat}', column_name='json_page', values=f"", unique_field='id', update_field='json_page')
+                self.db.json_to_db(json_sql=values, table_name=f"item_pages.{name_cat}", column_name='json_page', values=f"", unique_field='id', update_field='json_page')
             temp = {}
-            print(f'Выполнена вставка категории {name_cat}')   
+            print(f'Выполнена вставка категории {name_cat}')
+            current_time = time.time()
+            print(f'[INFO] прошло времени: {time.gmtime(current_time - self.start_time)[3]} ч : {time.gmtime(current_time - self.start_time)[4]} мин : {time.gmtime(current_time - self.start_time)[5]} сек')   
             
     def parse_info_to_item(self):
-        symb = f'\"-=+,./\\ \''
+        sql_values = ''
+        symb = f'\"-=+,./\\ \'!'
         self.get_cat_data()
-        self.db.create_schemas('items_info')
         for name_cat, id_cat in self.cat_json_data.items():
             self.db.create_table(f'items_info.items_{name_cat}',('id_item INTEGER PRIMARY KEY,name_item varchar'))
             items = self.db.get_sql_response(f"SELECT json_page FROM {name_cat};")
             for item in items:
                 for i in item:
                     for k in i:
-                        print(k['id'],k['name'],k['brand'],int(k['salePriceU'])/100, '\n\n')
                         name_brand = k['brand']
                         name_item = k['name']
                         for s in symb:
@@ -94,14 +96,23 @@ class Parser():
                                 name_item = name_item.replace(s,'_')
                             if s in name_brand:
                                 name_brand = name_brand.replace(s,'_')
-                        self.db.set_sql_request(f"INSERT INTO items_info.items_{name_cat} (id_item,name_item) VALUES ('{k['id']}','{name_item}') ON CONFLICT (id_item) DO NOTHING;")
+                        #sql_request.append(f"INSERT INTO items_info.items_{name_cat} (id_item,name_item) VALUES ('{k['id']}','{name_item}') ON CONFLICT (id_item) DO NOTHING;")
+                        sql_values = sql_values + (f"('{k['id']}', '{name_item}'),")
+            req_list = list(sql_values)
+            del req_list[-1]
+            sql_values = "".join(req_list)
+            sql_request = f"INSERT INTO items_info.items_{name_cat} (id_item,name_item) VALUES {(sql_values)} ON CONFLICT (id_item) DO NOTHING;"
+            self.db.set_sql_request(sql_request)
+            sql_request = ''
+            sql_values = ''
+            #print(sql_request)
+            
     
     # def csv_writer():
     #     pass        
 
 def main():
     symb = f'\"-=+,./\\ \''
-    start_time = time.time()
     wb_parser = Parser(URL, HEADERS_WB)
     wb_parser.add_json_cat_to_bd()
     wb_parser.create_cat_info()
