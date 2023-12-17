@@ -46,6 +46,7 @@ class Parser():
         self.db.create_schemas('public')
         self.db.create_schemas('item_pages')
         self.db.create_schemas('items_info')
+        self.db.create_schemas('items_price')
         self.db.create_table(name_table, fields)
         self.db.create_table('cat_info',('id SERIAL PRIMARY KEY,shard_cat varchar,id_cat integer UNIQUE, name_cat varchar, url varchar'))
         print(f'БД и таблицы созданы')  
@@ -115,6 +116,31 @@ class Parser():
                 sql_values = ''
             except Exception as ex:
                 print(f'Произошла ошибка {ex} при обработке категории\n')
+                
+    def parse_info_to_price(self):
+        sql_values = ''
+        self.get_cat_data()
+        for name_cat, id_cat in self.cat_json_data.items():
+            self.db.create_table(f'items_price.items_{name_cat}',('id_item INTEGER PRIMARY KEY,price_item INTEGER, sale_price INTEGER'))
+            try:
+                items = self.db.get_sql_response(f"SELECT json_page FROM item_pages.{name_cat};")
+                for item in items:
+                    for i in item:
+                        for k in i:
+                            price = k['priceU']
+                            sale_price = k['salePriceU']
+                            #sql_request.append(f"INSERT INTO items_info.items_{name_cat} (id_item,name_item) VALUES ('{k['id']}','{name_item}') ON CONFLICT (id_item) DO NOTHING;")
+                            sql_values = sql_values + (f"('{k['id']}',{int(price)/100},{int(sale_price)/100}),")
+                sql_request = f"INSERT INTO items_price.items_{name_cat} (id_item,price_item,sale_price) VALUES {(sql_values)} ON CONFLICT (id_item) DO NOTHING;"
+                tmp = list(sql_request)
+                del tmp[-35]
+                sql_request = ''.join(tmp)
+                #print(sql_request)
+                self.db.set_sql_request(sql_request)
+                sql_request = ''
+                sql_values = ''
+            except Exception as ex:
+                print(f'Произошла ошибка {ex} при обработке категории\n')        
             #print(sql_request)
             
     
@@ -129,7 +155,10 @@ def main():
     wb_parser.create_cat_info()
     if input('хотите обновить данные для внесения в БД? Введите Y') == 'Y':
         wb_parser.add_page_cat_to_bd()
-    wb_parser.parse_info_to_item()
+    if input('хотите обновить товары в БД? Введите Y') == 'Y':
+        wb_parser.parse_info_to_item()
+    if input('хотите обновить цены товаров в БД? Введите Y') == 'Y':
+        wb_parser.parse_info_to_price()
     current_time = time.time()
     print(f'[INFO] прошло времени: {time.gmtime(current_time - start_time)[3]} ч : {time.gmtime(current_time - start_time)[4]} мин : {time.gmtime(current_time - start_time)[5]} сек')  
 
