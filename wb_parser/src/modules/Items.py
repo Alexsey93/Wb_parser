@@ -10,7 +10,7 @@ class Items_json():
         self.dict_info_cat = {}
             
     @staticmethod    
-    def get_info(name_cat, id_cat):
+    def get_info(name_cat, query_cat):
         info = {}
         HEADERS_WB = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0',
@@ -31,7 +31,7 @@ class Items_json():
                 time.sleep(0.2)
                 while True:
                     try:
-                        response = session.get(f'https://catalog.wb.ru/catalog/{name_cat}/catalog?TestGroup=no_test&TestID=no_test&appType=1&cat={id_cat[0]}&curr=rub&dest=-1257786&page={page}')
+                        response = session.get(f'https://catalog.wb.ru/catalog/{name_cat}/catalog?TestGroup=no_test&TestID=no_test&appType=1&curr=rub&dest=-1257786&{query_cat}&page={page}')
                         if response.json().get('data').get('products'):
                             info[str(page)] = (response.json().get('data').get('products'))
                             print(f'Обработана {page}')
@@ -66,42 +66,47 @@ class Items_json():
                                                 shard = childs_5l['shard']
                                                 name = childs_5l['name']
                                                 url = childs_5l['url']
+                                                query = childs_5l['query']
                                                 for s in symb:
                                                     if s in shard:
                                                         shard = shard.replace(s,'_')
-                                                self.dict_info_cat[shard] = childs_5l['id'], name, url
+                                                self.dict_info_cat[shard] = childs_5l['id'], name, url, query
                                     else:
                                         shard = childs_4l['shard']
                                         name = childs_4l['name']
                                         url = childs_4l['url']
+                                        query = childs_4l['query']
                                         for s in symb:
                                             if s in shard:
                                                 shard = shard.replace(s,'_')
-                                        self.dict_info_cat[shard] = childs_4l['id'], name, url
+                                        self.dict_info_cat[shard] = childs_4l['id'], name, url, query
                             else:
                                 if 'shard' in childs_3l:
                                     shard = childs_3l['shard']
                                     name = childs_3l['name']
                                     url = childs_3l['url']
+                                    query = childs_3l['query']
                                     for s in symb:
                                         if s in shard:
                                             shard = shard.replace(s,'_')
-                                    self.dict_info_cat[shard] = childs_3l['id'], name, url
+                                    self.dict_info_cat[shard] = childs_3l['id'], name, url, query
                     else:
                         if 'shard' in childs_2l:
                             shard = childs_2l['shard']
                             name = childs_2l['name']
                             url = childs_2l['url']
+                            query = childs_2l['query']
                             for s in symb:
                                 if s in shard:
                                     shard = shard.replace(s,'_')
-                            self.dict_info_cat[shard] = childs_2l['id'], name, url
+                            self.dict_info_cat[shard] = childs_2l['id'], name, url, query
             else:
                 if 'shard' in childs:
                     shard = childs['shard']
                     name = childs['name']
                     url = childs['url']
+                    query = childs['query']
                     for s in symb:
                         if s in shard:
                             shard = shard.replace(s,'_')
-                    self.dict_info_cat[shard] = childs['id'], name, url
+                    self.dict_info_cat[shard] = childs['id'], name, url, query
