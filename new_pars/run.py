@@ -75,12 +75,14 @@ async def run():
                         log.info(query.query)
                         data[price] = tg.create_task(page.pages_response())
                 cat_info[key] = data
-                log.info([type(res) for res in
-                          [items for items in
-                           [value for key, value in
-                            cat_info.items()]
-                           ]
-                          ])
+        for item in cat_info:
+            log.info(item)
+                # log.info([type(res) for res in
+                #           [items for items in
+                #            [value for key, value in
+                #             cat_info.items()]
+                #            ]
+                #           ])
                     # with open('test.json', 'a') as file:
                     #     json.dump(res, file, ensure_ascii=False, indent=4)
         # res = await value
