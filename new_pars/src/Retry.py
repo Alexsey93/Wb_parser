@@ -22,7 +22,6 @@ class Retry(BaseRetry):
                  max_retry):
         self.max_retry = max_retry
         logger = ResponseLogger()
-        logger.create_logger()
         self.log: ResponseLogger = logger.log
 
     @staticmethod

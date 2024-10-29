@@ -6,6 +6,7 @@ class Query(ABC):
     def __init__(self):
         super().__init__()
 
+    @abstractmethod
     async def prepare_query(self):
         pass
 

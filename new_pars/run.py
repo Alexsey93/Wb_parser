@@ -1,100 +1,104 @@
 import asyncio
-import json
-from tqdm import tqdm
-from asyncio import TaskGroup, Semaphore
-from .src.utils import QueryItemsInfo
-from .src.Response import PageResponse, CatResponse
-from .src.Parser import ParserCatalog
-from fake_useragent import UserAgent
-from httpx import AsyncClient
-from httpx import Timeout, Limits, Response
-from .src.Logger import ResponseLogger
+from asyncio import TaskGroup
 import time
-import tqdm.asyncio
+from abc import ABC, abstractmethod
+from .src.generators import CatalogDataGenerator
+from .src.generators import CatalogListGenerator
+from .src.generators import PricePoolGenerator
+from .src.utils import QueryItemsInfo
+from .src.Response import PageResponse, CatalogResponse
+from .src.Parser import ParserCatalog
+from httpx import AsyncClient, Response
+from .src.Logger import ResponseLogger
 
 
-async def gen_cat(data_cat):
-    for item in data_cat:
-        yield item
+class BaseClient(ABC):
+
+    def __init__(self):
+        super().__init__()
+
+    @abstractmethod
+    def init_client(self):
+        pass
 
 
-async def gen_item_cat(item_cat):
-    for key in item_cat:
-        yield key
+class CatalogClient(BaseClient):
+
+    def __init__(self,
+                 log):
+        self.log = log
+
+    async def init_client(self):
+        async with AsyncClient(http2=True) as client:
+            catalog: Response = CatalogResponse(client=client)
+            response_catalog_raw = await catalog.get_response()
+            catalog_data_json = response_catalog_raw.json()
+            parser_catalog = ParserCatalog()
+            await parser_catalog.get_cat_info(data=catalog_data_json)
+        return parser_catalog.cat_data
 
 
-async def gen_price(price_start,
-                    price_end,
-                    price_step):
-    for price in range(price_start,
-                       price_end,
-                       price_step):
-        yield price
+class PageClient(BaseClient):
+
+    def __init__(self,
+                 log,
+                 catalog_list,
+                 price_start,
+                 price_end,
+                 price_step):
+        self.catalog_list = catalog_list
+        self.price_start = price_start
+        self.price_end = price_end
+        self.price_step = price_step
+        self.data = {}
+        self.task_list = {}
+        self.items_info = {}
+        self.log = log
+
+    async def init_client(self):
+        list_catalog = CatalogListGenerator()
+        catalog_data = CatalogDataGenerator()
+        price = PricePoolGenerator(price_start=self.price_start,
+                                   price_end=self.price_end,
+                                   price_step=self.price_step)
+        async with AsyncClient(http2=True) as client:
+            async for category in (list_catalog.
+                                   generator(
+                                             catalog_list=self.catalog_list)):
+                async for key in catalog_data.generator(catalog_data=category):
+                    async with TaskGroup() as tg:
+                        async for price_fin in price.generator():
+                            query = QueryItemsInfo(shard=category.get(key)[0],
+                                                   id=category.get(key)[1],
+                                                   price_filter_min=price_fin,
+                                                   price_filter_max=price_fin
+                                                   + 500)
+                            self.log.info(query.query)
+                            page = PageResponse(url=query.query,
+                                                client=client)
+                            self.data[price_fin] = (tg.
+                                                    create_task
+                                                    (page.pages_response())
+                                                    )
+            return self.data
 
 
 async def run():
     logger = ResponseLogger()
-    logger.create_logger()
     log = logger.log
     start_time = time.time()
-    timeout = Timeout(10,
-                      read=10,
-                      connect=10)
-    limits = Limits(max_keepalive_connections=None,
-                    max_connections=None)
-    agent = UserAgent().random
-    url = ('https://static-basket-01.wbbasket.ru/vol0/data/main-menu-ru-ru-v3.json')
-    async with AsyncClient(http2=True,
-                           limits=limits) as client:
-        page = CatResponse(url=url,
-                           timeout=timeout,
-                           agent=agent,
-                           client=client)
-        catalog_data_raw: Response = await page.get_response()
-        # print(cat_data.json())
-        catalog_data_json = catalog_data_raw.json()
-        parser_catalog_data = ParserCatalog()
-        await parser_catalog_data.get_cat_info(data=catalog_data_json)
-        catalog_data = parser_catalog_data.cat_data
-        data = {}
-        cat_info = {}
-        async for category in gen_cat(catalog_data[:1]):
-            async for key in gen_item_cat(category):
-                async with TaskGroup() as tg:
-                    async for price in gen_price(0,
-                                                 100000,
-                                                 500):
-                        query = QueryItemsInfo(shard=category.get(key)[0],
-                                               id=category.get(key)[1],
-                                               price_filter_min=price,
-                                               price_filter_max=price + 500)
-                        page = PageResponse(url=query.query,
-                                            timeout=timeout,
-                                            agent=agent,
-                                            client=client)
-                        log.info(query.query)
-                        data[price] = tg.create_task(page.pages_response())
-                cat_info[key] = data
-        for item in cat_info:
-            log.info(item)
-                # log.info([type(res) for res in
-                #           [items for items in
-                #            [value for key, value in
-                #             cat_info.items()]
-                #            ]
-                #           ])
-                    # with open('test.json', 'a') as file:
-                    #     json.dump(res, file, ensure_ascii=False, indent=4)
-        # res = await value
-        # if res:
-        #     with open('test.json', 'a') as file:
-        #         json.dump(res, file, ensure_ascii=False, indent=4)
+    catalog = CatalogClient(log=log)
+    catalog_list = await catalog.init_client()
+    log.info(catalog_list)
+    page_data = PageClient(log=log,
+                           catalog_list=catalog_list,
+                           price_start=0,
+                           price_end=100000,
+                           price_step=500)
+    page_data_res = await page_data.init_client()
+    print(page_data_res)
     end_time = time.time()
     log.info(end_time - start_time)
-        # res = await data[key]
-        # print(res)
-        # for key, value in data.items():
-        #     print(await value)
 
 
 def main():

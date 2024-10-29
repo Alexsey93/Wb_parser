@@ -43,7 +43,8 @@ class ResponseLogger(BaseLogger):
                                                  'propagate': False},
                                 }
                             }
+        self.log = self.create_logger()
 
     def create_logger(self):
         logging.config.dictConfig(self.default_config)
-        self.log = logging.getLogger(__name__)
+        return logging.getLogger(__name__)

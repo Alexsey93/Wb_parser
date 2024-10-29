@@ -3,9 +3,8 @@ from httpx import AsyncClient, Response
 from httpx import ConnectError
 from .Retry import Retry
 from .Logger import ResponseLogger
-
-
-
+from fake_useragent import UserAgent
+from httpx import Timeout
 
 
 class ResponseBase(ABC):
@@ -18,17 +17,17 @@ class ResponseBase(ABC):
         pass
 
 
-class CatResponse(ResponseBase):
+class CatalogResponse(ResponseBase):
 
     def __init__(self,
-                 url,
-                 agent,
-                 client,
-                 timeout):
-        self._url = url
-        self.agent = agent
+                 client):
+        self._url = ('https://static-basket-01.wbbasket.ru'
+                     '/vol0/data/main-menu-ru-ru-v3.json')
+        self.agent = UserAgent().random
         self.client: AsyncClient = client
-        self.timeout = timeout
+        self.timeout = Timeout(10,
+                               read=10,
+                               connect=10)
         self.headers = {
             'User-Agent': self.agent,
             'Accept': '*/*',
@@ -48,7 +47,6 @@ class CatResponse(ResponseBase):
             # 'TE': 'trailers',
         }
         logger = ResponseLogger()
-        logger.create_logger()
         self.log = logger.log
 
     @Retry.retry(max_retry=10)
@@ -68,14 +66,14 @@ class PageResponse(ResponseBase):
 
     def __init__(self,
                  url,
-                 agent,
-                 client,
-                 timeout):
+                 client):
         self._url = url
-        self.agent = agent
+        self.agent = UserAgent().random
         self.client: AsyncClient = client
         self.response = []
-        self.timeout = timeout
+        self.timeout = Timeout(10,
+                               read=10,
+                               connect=10)
         self.headers = {
             'User-Agent': self.agent,
             'Accept': '*/*',
@@ -95,7 +93,6 @@ class PageResponse(ResponseBase):
             # 'TE': 'trailers',
         }
         logger = ResponseLogger()
-        logger.create_logger()
         self.log = logger.log
 
     @Retry.retry(max_retry=5)
