@@ -33,8 +33,9 @@ class ParserCatalog(Parser):
             else:
                 if data.get('shard'):
                     if data.get('shard') != 'blackhole':
-                        dict_info_category[data.get('name')] = [data.get('shard'),
-                                                                data.get('id')]
+                        dict_info_category['name'] = data.get('name')
+                        dict_info_category['id_cat'] = data.get('id')
+                        dict_info_category['shard'] = data.get('shard')
                         list_cat.append(dict_info_category)
         self.cat_data = list_cat
         return list_cat

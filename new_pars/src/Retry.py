@@ -31,6 +31,7 @@ class Retry(BaseRetry):
                 retry = max_retry
                 while retry:
                     try:
+                        await asyncio.sleep(0.2)
                         response: Response = await func(self, *args, **kwargs)
                         if isinstance(response, httpx.ConnectTimeout):
                             raise ConnectionError('ошибка таймаута')

@@ -1,5 +1,6 @@
 import asyncio
 from asyncio import TaskGroup
+import json
 import time
 from abc import ABC, abstractmethod
 from .src.generators import CatalogDataGenerator
@@ -10,6 +11,8 @@ from .src.Response import PageResponse, CatalogResponse
 from .src.Parser import ParserCatalog
 from httpx import AsyncClient, Response
 from .src.Logger import ResponseLogger
+from .src.Postgres import Postgres
+from .src.models import category_table, items_table
 
 
 class BaseClient(ABC):
@@ -65,38 +68,70 @@ class PageClient(BaseClient):
             async for category in (list_catalog.
                                    generator(
                                              catalog_list=self.catalog_list)):
-                async for key in catalog_data.generator(catalog_data=category):
-                    async with TaskGroup() as tg:
-                        async for price_fin in price.generator():
-                            query = QueryItemsInfo(shard=category.get(key)[0],
-                                                   id=category.get(key)[1],
-                                                   price_filter_min=price_fin,
-                                                   price_filter_max=price_fin
-                                                   + 500)
-                            self.log.info(query.query)
-                            page = PageResponse(url=query.query,
-                                                client=client)
-                            self.data[price_fin] = (tg.
-                                                    create_task
-                                                    (page.pages_response())
-                                                    )
+                self.log.info(category)
+                async with TaskGroup() as tg:
+                    async for price_fin in price.generator():
+                        query = QueryItemsInfo(shard=category.get('shard'),
+                                               id=category.get('id_cat'),
+                                               price_filter_min=price_fin,
+                                               price_filter_max=price_fin
+                                               + self.price_step)
+                        # self.log.info(query.query)
+                        page = PageResponse(url=query.query,
+                                            client=client)
+                        self.data[price_fin] = (tg.
+                                                create_task
+                                                (page.pages_response_old())
+                                                )
             return self.data
 
 
 async def run():
+    pg_client = Postgres()
+    await pg_client.pg_client()
     logger = ResponseLogger()
     log = logger.log
     start_time = time.time()
     catalog = CatalogClient(log=log)
     catalog_list = await catalog.init_client()
     log.info(catalog_list)
+    query_cat = await pg_client.query_bd_cat(data=catalog_list,
+                                             table=category_table)
+    await pg_client.insert_to_bd(query=query_cat)
     page_data = PageClient(log=log,
-                           catalog_list=catalog_list,
+                           catalog_list=catalog_list[1:2],
                            price_start=0,
-                           price_end=100000,
-                           price_step=500)
+                           price_end=350,
+                           price_step=350)
     page_data_res = await page_data.init_client()
-    print(page_data_res)
+    for key, value in page_data_res.items():
+        res = await value
+        if res is not None:
+            for item in res:
+                query_items = await pg_client.query_bd_cat(data=(item.get('id'),
+                                                                 item.get('brand'),
+                                                                 item.get('name')
+                                                                 ),
+                                                           table=items_table)
+                await pg_client.insert_to_bd(query=query_items)
+                # with open('new_pars/test.json', 'a') as file:
+                #     json.dump(item, file, ensure_ascii=False, indent=4)
+                log.info(f"|||||||{res.index(item)}||||||||")
+                # for k, v in item.items():
+                #     log.info(f"|||||||{k}||||||||")
+                # for i in item:
+                #     log.info(f"|||||||{item.index(i)}||||||||")
+            # for k in res:
+            #     log.info(f"|||||||{k}||||||||")
+        # for k in res:
+        #     for item in k:
+        #         for a in item:
+        #             log.info(f"|||||||{type(a)}||||||||")
+        # res = await page_data_res[key]
+        # with open('new_pars/test.json', 'a') as file:
+        #     json.dump(res, file, ensure_ascii=False, indent=4)
+        # log.info(f'----------------------{key}----------------------')
+        # log.info(f'\n{await page_data_res[key]}\n')
     end_time = time.time()
     log.info(end_time - start_time)
 

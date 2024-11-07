@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from asyncio import TaskGroup
 from httpx import AsyncClient, Response
 from httpx import ConnectError
 from .Retry import Retry
@@ -95,11 +96,14 @@ class PageResponse(ResponseBase):
         logger = ResponseLogger()
         self.log = logger.log
 
-    @Retry.retry(max_retry=5)
+
+    @Retry.retry(max_retry=10)
     async def get_response(self,
                            page) -> Response:
+        self.log.info(f'\n---{page}------\n')
         try:
             url = self._url+f'&page={page}'
+            self.log.info(f'\n---{url}------\n')
             # print(self._url+f'&page={page}')
             response: Response = await self.client.get(url=url,
                                                        headers=self.headers)
@@ -107,14 +111,25 @@ class PageResponse(ResponseBase):
                 return (response,
                         url)
             else:
-                raise ConnectError('Ошибка соединения')
+                raise ConnectError(f'{response.status_code}')
             # print(response.status_code)
         except Exception as e:
             return e
 
-    async def pages_response(self, list_response=None, page=None):
+    async def gen_page(self):
+        for page_r in range(51):
+            yield page_r
+
+    async def pages_response_new(self,
+                                 tg: TaskGroup):
+        list_task = {}
+        async for page in self.gen_page():
+            list_task[page] = tg.create_task(self.get_response(page=page))
+        self.log.info(list_task)
+
+    async def pages_response_old(self, list_response=None, page=None):
         if list_response is None:
-            list_response = {}
+            list_response = []
         if page is None:
             page = 1
         if page == 51:
@@ -125,10 +140,13 @@ class PageResponse(ResponseBase):
             self.log.info(f'\n-----------{page}---{bool(response[0].json().get('data').get('products'))}---{response[1]}-------\n')
             if response:
                 if response[0].json().get('data').get('products'):
-                    list_response[page] = response[0].json().get('data').get('products')
+                    resp = response[0].json().get('data').get('products')
+                    for item in resp:
+                        list_response.append(item)
                     page = page + 1
-                    await self.pages_response(list_response=list_response,
-                                            page=page)
+                    return await self.pages_response_old(list_response=list_response,
+                                                         page=page)
+                else:
+                    return list_response
             else:
                 return list_response
-        return list_response
